@@ -3,38 +3,99 @@
   when: ansible_distribution == 'Fedora' and ansible_distribution_major_version|int >= 22
   
 - name: install required dnf packages
-  yum: name={{ item }} state=installed
+  dnf: name={{ item }} state=installed
   with_items:
+    - sendmail
+    - clamav
+    - clamav-data
+    - clamav-update
     - firewalld
     - firewall-config
+    - sshfs
     - python2-pexpect
-    - python-firewall
-    - dkms 
-    - kernel-headers 
-    - kernel 
-    - kernel-devel 
-    - gcc 
-    - make
-  when: (ansible_distribution == 'Fedora' and ansible_distribution_major_version|int >= 22) or
-  (ansible_distribution == 'RedHat' and ansible_distribution_major_version|int >= 7) 
-   
-- name: adding virtualbox repository
-  template: src=redhat_virtualbox.repo.j2 dest=/etc/yum.repos.d/virtualbox.repo
-  when: ansible_distribution == 'RedHat' and ansible_distribution_major_version|int >= 7
-  
-- name: adding virtualbox repository
-  template: src=fedora_virtualbox.repo.j2 dest=/etc/yum.repos.d/virtualbox.repo
+    - ruby-devel #vagrant plugin vagrant-sshfs
+    - zlib-devel #vagrant plugin vagrant-sshfs
+    - rpm-build #vagrant plugin vagrant-sshfs
+    - python-firewall #required for setting firewall rules with ansibles firewalld module
   when: ansible_distribution == 'Fedora' and ansible_distribution_major_version|int >= 22
+  notify:
+    - Update default signatures
 
+- name: install required yum packages
+  yum: name={{ item }} state=installed
+  with_items:
+    - sendmail
+    - clamav
+    - clamav-data
+    - clamav-update
+    - firewalld
+    - firewall-config
+    - sshfs
+    - pexpect
+  when: ansible_distribution == 'RedHat' and ansible_distribution_major_version|int >= 7
+  notify:
+    - Update default signatures
 
-- name: install virtualbox
-  yum: name=VirtualBox-5.0 state=latest 
+- name: Ensure sendmail is enabled
+  service: name=sendmail state=started enabled=yes
+  
+- name: Ensure firewalld is enabled
+  service: name=firewalld state=started enabled=yes
 
+- name: Disable clam user login
+  user: name=clam shell=/sbin/nologin
 
-- name: install vagrant
-  yum: name=vagrant_1.8.6_x86_64.rpm state=present
-  changed_when: false
+- name: Disable clam-update user login
+  user: name=clam-update shell=/sbin/nologin
+  
+- name: write freshclam.conf
+  template: src=freshclam.conf.j2 dest=/etc/freshclam.conf mode=0755 
 
+- name: Daily clamav database update
+  cron: name="Daily Virus DB Update"
+        hour=2
+        minute=0
+        job="/usr/bin/freshclam"
+        state=present
+
+- name: Daily clamav scan
+  cron: name="Daily Virus Scan"
+        hour=3
+        minute=0
+        job="/usr/bin/clamscan -r /  --detect-pua --exclude-dir=/sys/ --exclude-dir=/proc/ --exclude-dir=/dev/ --infected 2>&1 | /usr/bin/logger -p local0.info -t clamscan"
+        state=present
+
+- stat: path=/media/rs6xdevemlweb01_attachments
+  register: rs6xdevemlweb01_attachments
+
+- name: create rs6xdevemlweb01_attachments directory
+  file: path=/media/rs6xdevemlweb01_attachments/ state=directory owner={{ devnet_user }} mode=0776 
+  ignore_errors: true
+  when: rs6xdevemlweb01_attachments.stat.exists == False
+
+- name: remove the mount if it exists
+  shell: fusermount -u /media/rs6xdevemlweb01_attachments
+  ignore_errors: true
+
+  #- name: setup fuse
+  #lineinfile:
+    #  dest: /etc/fuse.conf
+    #regexp: '^# user_allow_other'
+    #line: 'user_allow_other'
+    #backrefs: yes
+
+    #- name: mount rs6xdevemlweb01 attachment dir
+    #shell: echo si4iej/ah5uuBa9aeshi | /usr/bin/sshfs -oreconnect -o allow_other sftpuser@rs6xdevemlweb01.mindbrix.com:/hostonly/data/dev/propval /media/rs6xdevemlweb01_attachments -o password_stdin 
+    #args:
+      #creates: /media/rs6xdevemlweb01_attachments/orders_B
+      #become_user: "{{ devnet_user }}"
+
+- name: install vagrant plugin
+  shell: vagrant plugin install vagrant-sshfs 
+  become_user: "{{ devnet_user }}"
+
+- name: make fake attachment directory for vagrant-sshfs plugin
+  file: path=/hostonly/data/dev/propval/ state=directory owner={{ devnet_user }} mode=0776
 
 - name: Open up firewalld for nfs
   firewalld: service={{ item }} permanent=true state=enabled immediate=true
@@ -46,12 +107,4 @@
 - name: Open up firewalld for devnet ports
   firewalld: port={{ item }} permanent=true state=enabled immediate=true
   with_items:
-    - 2049/udp
     - 8000-8100/tcp
-    
-- name: Install system group
-  group: name=vagrant state=present
-
-- name: write sudoers.d
-  template: src=sudoers.j2 dest=/etc/sudoers.d/vagrant mode=0755 validate='visudo -cf %s'
-
