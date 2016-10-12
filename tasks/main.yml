@@ -3,6 +3,21 @@
   when: ansible_distribution == 'Fedora' and ansible_distribution_major_version|int >= 22
   
 - name: install required dnf packages
+  dnf: name={{ item }} state=installed
+  with_items:
+    - firewalld
+    - firewall-config
+    - python2-pexpect
+    - python-firewall
+    - dkms 
+    - kernel-headers 
+    - kernel 
+    - kernel-devel 
+    - gcc 
+    - make
+  when: ansible_distribution == 'Fedora' and ansible_distribution_major_version|int >= 22
+        
+- name: install required yum packages
   yum: name={{ item }} state=installed
   with_items:
     - firewalld
@@ -15,8 +30,7 @@
     - kernel-devel 
     - gcc 
     - make
-  when: (ansible_distribution == 'Fedora' and ansible_distribution_major_version|int >= 22) or
-        (ansible_distribution == 'RedHat' and ansible_distribution_major_version|int >= 7)
+  when: ansible_distribution == 'RedHat' and ansible_distribution_major_version|int >= 7
 
 - name: adding virtualbox repository
   template: src=redhat_virtualbox.repo.j2 dest=/etc/yum.repos.d/virtualbox.repo
@@ -25,18 +39,29 @@
 - name: adding virtualbox repository
   template: src=fedora_virtualbox.repo.j2 dest=/etc/yum.repos.d/virtualbox.repo
   when: ansible_distribution == 'Fedora' and ansible_distribution_major_version|int >= 22
-
-
-- name: install virtualbox
+  
+- name: install virtualbox with dnf
+  dnf: name=VirtualBox-5.0 state=latest 
+  when: ansible_distribution == 'Fedora' and ansible_distribution_major_version|int >= 22
+  
+- name: install virtualbox with yum
   yum: name=VirtualBox-5.0 state=latest 
+  when: ansible_distribution == 'RedHat' and ansible_distribution_major_version|int >= 7
 
 - name: copy vagrant rpm to /tmp
   copy: src=files/vagrant_1.8.6_x86_64.rpm dest=/tmp/vagrant.rpm
 
 
-- name: install vagrant
+- name: install vagrant with dnf
+  dnf: name=/tmp/vagrant.rpm state=present
+  changed_when: false
+  when: ansible_distribution == 'Fedora' and ansible_distribution_major_version|int >= 22
+
+- name: install vagrant with yum
   yum: name=/tmp/vagrant.rpm state=present
   changed_when: false
+  when: ansible_distribution == 'RedHat' and ansible_distribution_major_version|int >= 7
+
 
 - name: Open up firewalld for nfs
   firewalld: service={{ item }} permanent=true state=enabled immediate=true
