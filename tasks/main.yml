@@ -63,14 +63,14 @@
   when: ansible_distribution == 'RedHat' and ansible_distribution_major_version|int >= 7
 
 
-- name: Open up firewalld for nfs
+- name: Open up firewalld for nfs service
   firewalld: service={{ item }} permanent=true state=enabled immediate=true
   with_items:
     - nfs
     - rpc-bind
     - mountd
 
-- name: Open up firewalld for devnet ports
+- name: Open up firewalld ports for nfs
   firewalld: port={{ item }} permanent=true state=enabled immediate=true
   with_items:
     - 2049/udp
