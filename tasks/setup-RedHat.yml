@@ -1,0 +1,30 @@
+---
+- raw: yum install -y python2 python2-dnf libselinux-python
+
+- name: install required yum packages
+  yum: name={{ item }} state=installed
+  with_items:
+    - firewalld
+    - firewall-config
+    - dkms 
+    - kernel-headers 
+    - kernel 
+    - kernel-devel 
+    - gcc 
+    - make
+
+- name: adding virtualbox repository
+  template: src=redhat_virtualbox.repo.j2 dest=/etc/yum.repos.d/virtualbox.repo
+  
+- name: install virtualbox with yum
+  yum: name=VirtualBox-5.0 state=latest 
+
+- name: copy vagrant rpm to /tmp
+  copy: src=files/vagrant_1.8.6_x86_64.rpm dest=/tmp/vagrant.rpm
+
+- name: install vagrant with yum
+  yum: name=/tmp/vagrant.rpm state=present
+  changed_when: false
+
+
+
