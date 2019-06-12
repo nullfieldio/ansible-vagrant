@@ -2,27 +2,28 @@
 - raw: dnf install -y python2 python2-dnf libselinux-python
 
 - name: install required dnf packages
-  dnf: name={{ item }} state=installed
-  with_items:
-    - firewalld
-    - firewall-config
-    - python2-pexpect
-    - python-firewall
-    - dkms 
-    - kernel-headers 
-    - kernel 
-    - kernel-devel 
-    - gcc 
-    - make
+  dnf: 
+    state: installed
+    name:
+      - firewalld
+      - firewall-config
+      - python2-pexpect
+      - python-firewall
+      - dkms 
+      - kernel-headers 
+      - kernel 
+      - kernel-devel 
+      - gcc 
+      - make
 
 - name: adding virtualbox repository
   template: src=fedora_virtualbox.repo.j2 dest=/etc/yum.repos.d/virtualbox.repo
   
 - name: install virtualbox with dnf
-  dnf: name=VirtualBox-5.0 state=latest 
+  dnf: name=VirtualBox-5.2 state=latest 
 
 - name: copy vagrant rpm to /tmp
-  copy: src=files/vagrant_1.8.6_x86_64.rpm dest=/tmp/vagrant.rpm
+  copy: src=files/vagrant_2.2.2_x86_64.rpm dest=/tmp/vagrant.rpm
 
 - name: install vagrant with dnf
   dnf: name=/tmp/vagrant.rpm state=present
