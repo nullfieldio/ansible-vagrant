@@ -28,4 +28,3 @@
 - name: install vagrant with dnf
   dnf: name=/tmp/vagrant.rpm state=present
   changed_when: false
-
