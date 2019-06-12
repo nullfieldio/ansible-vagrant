@@ -8,7 +8,6 @@
       - firewalld
       - firewall-config
       - python2-pexpect
-      - python-firewall
       - dkms 
       - kernel-headers 
       - kernel 
